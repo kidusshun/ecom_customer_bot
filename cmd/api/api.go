@@ -1,0 +1,52 @@
+package api
+
+import (
+	"database/sql"
+	"log"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/kidusshun/ecom_bot/llmclient"
+	"github.com/kidusshun/ecom_bot/service/chat"
+	"github.com/kidusshun/ecom_bot/service/product"
+	"github.com/kidusshun/ecom_bot/service/user"
+)
+
+type APIServer struct {
+	addr string
+	db   *sql.DB
+}
+
+func NewAPIServer(addr string, db *sql.DB) *APIServer {
+	return &APIServer{
+		addr: addr,
+		db:   db,
+	}
+}
+
+func (s *APIServer) Run() error {
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+
+	userStore := user.NewStore(s.db)
+	userHandler := user.NewHandler(userStore)
+	userHandler.RegisterRoutes(router)
+
+	productStore := product.NewStore(s.db)
+	productHandler := product.NewHandler(productStore, userStore)
+	productHandler.RegisterRoutes(router)
+
+	chatStore := chat.NewStore(s.db)
+	llmTools := llmclient.NewQueryStore(s.db)
+	client := llmclient.NewLlmClient(llmTools)
+	chatService := chat.NewChatService(chatStore, client)
+	chatHandler := chat.NewHandler(chatService)
+	chatHandler.RegisterRoutes(router)
+
+
+	log.Println("Listening on ", s.addr)
+	err := http.ListenAndServe(s.addr, router)
+
+	return err
+}
