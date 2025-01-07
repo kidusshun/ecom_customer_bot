@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/kidusshun/ecom_bot/llmclient"
 	"github.com/kidusshun/ecom_bot/service/chat"
 	"github.com/kidusshun/ecom_bot/service/product"
@@ -27,6 +28,15 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 
 func (s *APIServer) Run() error {
 	router := chi.NewRouter()
+
+	router.Use(cors.Handler(cors.Options{
+        AllowedOrigins:   []string{"http://localhost:3000"}, // Allow specific origin
+        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowedHeaders:   []string{"Content-Type", "Authorization"},
+        ExposedHeaders:   []string{"Content-Length"},
+        AllowCredentials: true,
+        MaxAge:           300, // Max cache duration in seconds
+    }))
 	router.Use(middleware.Logger)
 
 	userStore := user.NewStore(s.db)

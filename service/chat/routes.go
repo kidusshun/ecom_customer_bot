@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/kidusshun/ecom_bot/service/auth"
 	"github.com/kidusshun/ecom_bot/utils"
 )
 
@@ -22,7 +23,7 @@ func NewHandler(service ChatService) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router chi.Router) {
-	router.Post("/chat", h.handleChat)
+	router.With(auth.CheckBearerToken).Post("/chat", h.handleChat)
 }
 
 func (h *Handler) handleChat(w http.ResponseWriter, r *http.Request) {

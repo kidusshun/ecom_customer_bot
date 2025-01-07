@@ -25,13 +25,9 @@ func (s *Store) WriteMessage(message string, sessionID uuid.UUID) error {
 	return nil
 }
 
-func (s *Store) GetChatHistory(sessionID uuid.UUID) ([]llmclient.Message, error) {
-	rows, err := s.db.Query("SELECT message FROM chat WHERE session_id = ?", sessionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+var Messsages []llmclient.Message
 
-	var messages []llmclient.Message
-	return messages, nil
-}	
+func (s *Store) GetChatHistory(sessionID uuid.UUID) ([]llmclient.Message, error) {
+	return Messsages, nil
+}
+

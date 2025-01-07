@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"text/template"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kidusshun/ecom_bot/service/auth"
-	"github.com/markbates/goth/gothic"
+	"github.com/kidusshun/ecom_bot/utils"
+	"golang.org/x/oauth2"
 )
 
 type Handler struct {
@@ -24,34 +25,30 @@ func NewHandler(store UserStore) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router chi.Router) {
-	router.Get("/auth/login", h.handleLogin)
-	router.Get("/auth/{provider}/callback", h.getAuthCallbackFunction)
-	router.Get("/logout/{provider}", h.handleLogout)
+	router.Post("/auth/google", h.googleSignupOrLogin)
+	router.Get("/auth/google/callback", h.googleCallbackHandler)
+	router.Post("/auth/google/signup", h.googleSignupOrLogin)
+	router.With(auth.CheckBearerToken).Get("/user/me", h.getUser)
 }
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
-	url := auth.GoogleOauthConfig.AuthCodeURL("randomstate")
+	url := auth.GoogleOAuthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-
 }
-func (h *Handler) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-
-	// Verify state token (you can add more checks for security)
-	if r.FormValue("state") != "randomstate" {
+func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	if r.FormValue("state") != "state-token" {
 		http.Error(w, "State token mismatch", http.StatusBadRequest)
 		return
 	}
 
 	code := r.FormValue("code")
-	token, err := auth.GoogleOauthConfig.Exchange(ctx, code)
+	token, err := auth.GoogleOAuthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		http.Error(w, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Retrieve user information from Google
-	client := auth.GoogleOauthConfig.Client(ctx, token)
+	client := auth.GoogleOAuthConfig.Client(context.Background(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		http.Error(w, "Failed to get user info: "+err.Error(), http.StatusInternalServerError)
@@ -59,63 +56,109 @@ func (h *Handler) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// Parse and return user information
 	var userInfo map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		http.Error(w, "Failed to parse user info: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to decode user info: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(userInfo)
-}
+	// write the user to database
+	user := User{
+		Name:           userInfo["name"].(string),
+		Email:          userInfo["email"].(string),
+		ProfilePicture: userInfo["picture"].(string),
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
 
-func (h *Handler) getAuthCallbackFunction(w http.ResponseWriter, r *http.Request) {
-	provider := chi.URLParam(r, "provider")
+	res, err := h.store.GetUserByEmail(user.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+	}
 
-	r = r.WithContext(context.WithValue(context.Background(), "provider", provider))
+	if res != nil {
+		// Send token back to the frontend
+		sessionToken, err := auth.GenerateJWT(res.Email)
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, err)
+		}
+		http.Redirect(w, r, fmt.Sprintf("http://localhost:3000?token=%s", sessionToken), http.StatusSeeOther)
+		return
+	}
 
-	user, err := gothic.CompleteUserAuth(w, r)
+	_, err = h.store.CreateUser(user.Name, user.Email, user.ProfilePicture)
 
 	if err != nil {
-		log.Fatal(err)
+		utils.WriteError(w, http.StatusInternalServerError, err)
+	}
+
+	sessionToken, err := auth.GenerateJWT(user.Email)
+	if err != nil {
+		http.Error(w, "Failed to generate session token: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Println(user)
-
-	http.Redirect(w, r, "http://localhost:5173", http.StatusFound)
-
+	http.Redirect(w, r, fmt.Sprintf("http://localhost:3000?token=%s", sessionToken), http.StatusSeeOther)
 }
 
-func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
-	gothic.Logout(w, r)
-	w.Header().Set("Location", "/")
-	w.WriteHeader(http.StatusTemporaryRedirect)
-
-}
-
-func (h *Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
-	// try to get the user without re-authenticating
-	if gothUser, err := gothic.CompleteUserAuth(w, r); err == nil {
-		t, _ := template.New("foo").Parse(userTemplate)
-		t.Execute(w, gothUser)
-	} else {
-		gothic.BeginAuthHandler(w, r)
+func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
+	userEmail := r.Context().Value("userEmail").(string)
+	log.Println("emaaaaaaaaaaaaaaail", userEmail)
+	user, err := h.store.GetUserByEmail(userEmail)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
 	}
 
+	utils.WriteJSON(w, http.StatusOK, user)
 }
 
-var userTemplate = `
-<p><a href="/logout/{{.Provider}}">logout</a></p>
-<p>Name: {{.Name}} [{{.LastName}}, {{.FirstName}}]</p>
-<p>Email: {{.Email}}</p>
-<p>NickName: {{.NickName}}</p>
-<p>Location: {{.Location}}</p>
-<p>AvatarURL: {{.AvatarURL}} <img src="{{.AvatarURL}}"></p>
-<p>Description: {{.Description}}</p>
-<p>UserID: {{.UserID}}</p>
-<p>AccessToken: {{.AccessToken}}</p>
-<p>ExpiresAt: {{.ExpiresAt}}</p>
-<p>RefreshToken: {{.RefreshToken}}</p>
-`
+func (h *Handler) googleSignupOrLogin(w http.ResponseWriter, r *http.Request) {
+	var body LoginPayload
+	err := json.NewDecoder(r.Body).Decode(&body)
+	fmt.Println("request", body.AccessToken)
+	if err != nil {
+
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	user, err := verifyGoogleToken(body.AccessToken)
+	fmt.Println("error", err)
+
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+	userStored, err := h.store.GetUserByEmail(user.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if userStored == nil {
+
+		user, err := h.store.CreateUser(user.Name, user.Email, user.Picture)
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, err)
+			return
+		}
+		jwtToken, err := auth.GenerateJWT(user.Email)
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, err)
+			return
+		}
+		response := LoginResponse{
+			Token: jwtToken,
+		}
+		utils.WriteJSON(w, http.StatusOK, response)
+
+	}
+	jwtToken, err := auth.GenerateJWT(user.Email)
+
+	response := LoginResponse{
+		Token: jwtToken,
+	}
+	utils.WriteJSON(w, http.StatusOK, response)
+
+}
+

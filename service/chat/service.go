@@ -10,14 +10,14 @@ import (
 )
 
 type Service struct {
-	store ChatStore
+	store  ChatStore
 	client llmclient.LlmClient
 }
 
 func NewChatService(store ChatStore, client llmclient.LlmClient) *Service {
 	return &Service{
-		store:store,
-		client:client,
+		store:  store,
+		client: client,
 	}
 }
 
@@ -33,7 +33,6 @@ func (chat *Service) Chat(request ChatRequest) (ChatResponse, error) {
 	}
 	tools := GetTools()
 
-
 	if len(request.Attachment) > 0 {
 		parts := []llmclient.Part{
 			{
@@ -44,7 +43,7 @@ func (chat *Service) Chat(request ChatRequest) (ChatResponse, error) {
 			parts = append(parts, llmclient.Part{
 				InlineData: &llmclient.ImageData{
 					MimeType: attachment.MimeType,
-					Data: string(attachment.Content),
+					Data:     string(attachment.Content),
 				},
 			})
 		}
@@ -67,15 +66,15 @@ func (chat *Service) Chat(request ChatRequest) (ChatResponse, error) {
 		return ChatResponse{}, err
 	}
 	chatHistory = append(chatHistory, llmclient.Message{
-		Role: llmclient.MODEL,
+		Role:  llmclient.MODEL,
 		Parts: response.Candidates[0].Content.Parts,
 	})
+
 	if err != nil {
 		return ChatResponse{}, err
 	}
 
-	var chatResponse ChatResponse;
-
+	var chatResponse ChatResponse
 
 	for response.Candidates[0].Content.Parts[0].FunctionCall != nil {
 		call_result, err := chat.client.HandleFunctionCall(response)
@@ -90,18 +89,24 @@ func (chat *Service) Chat(request ChatRequest) (ChatResponse, error) {
 		if call_result.Location != "" {
 			chatResponse.Location = call_result.Location
 		}
-		
+
 		response, err = chat.client.CallGemini(chatHistory, tools)
+
+		chatHistory = append(chatHistory, llmclient.Message{
+			Role:  llmclient.MODEL,
+			Parts: response.Candidates[0].Content.Parts,
+		})
 		if err != nil {
 			return ChatResponse{}, err
 		}
-		str, err :=json.Marshal(response)
+		str, err := json.Marshal(response)
 		if err != nil {
 			log.Print(err)
 			return ChatResponse{}, err
 		}
 		fmt.Println(string(str))
 	}
+	Messsages = chatHistory
 	chatResponse.ModelResponse = response.Candidates[0].Content.Parts[0].Text
 
 	return chatResponse, nil
@@ -155,6 +160,3 @@ func GetTools() []llmclient.Tool {
 		},
 	}
 }
-
-
-

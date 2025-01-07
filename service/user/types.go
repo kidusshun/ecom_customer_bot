@@ -1,13 +1,15 @@
 package user
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
 type UserStore interface {
 	GetUserByEmail(email string) (*User, error)
 	GetUserByID(id uuid.UUID) (*User, error)
-	CreateUser(User) error
+	CreateUser(name, email, picture string) (*User, error)
 }
 
 type User struct {
@@ -15,6 +17,20 @@ type User struct {
 	Name 	string    `json:"name"`
 	Email	 string    `json:"email"`
 	ProfilePicture string `json:"profile_picture"`
-	CreatedAt string    `json:"created_at"`
-	UpdatedAt string    `json:"updated_at"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+}
+
+type LoginPayload struct {
+	AccessToken string `json:"access_token"`
+}
+
+type GoogleUser struct {
+	Name string `json:"name"`
+	Email string `json:"email"`
+	Picture string `json:"picture"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
 }

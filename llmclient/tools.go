@@ -11,6 +11,8 @@ import (
 	"log"
 	"net/http"
 
+	"math/rand"
+
 	"github.com/google/uuid"
 	"github.com/kidusshun/ecom_bot/config"
 	"github.com/kidusshun/ecom_bot/embedding"
@@ -128,9 +130,11 @@ func (s *QueryStore) QueryProducts(query string) (*ToolCallResponse, error)  {
 
 func (s *QueryStore) TrackOrder(orderID uuid.UUID) (*ToolCallResponse, error)  {
 	url := "https://api.goshippo.com/tracks/"
+	statuses := []string{"SHIPPO_RETURNED", "SHIPPO_PRE_TRANSIT", "SHIPPO_DELIVERED", "SHIPPO_RETURNED"}
+	randomIndex := rand.Intn(len(statuses))
 	jsonBody := map[string]string {
 		"carrier":"shippo",
-		"tracking_number": "SHIPPO_TRANSIT", //make this random to get all the possibilites
+		"tracking_number": statuses[randomIndex], //make this random to get all the possibilites
 		"metadata":"Test shipment",
 	}
 	client := &http.Client{}

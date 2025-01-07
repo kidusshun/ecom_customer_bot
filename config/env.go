@@ -41,6 +41,10 @@ type ShippoConfig struct {
 	ShippoAPIKey string
 }
 
+type JWTConfig struct {
+	JWTSecret string
+}
+
 func initGoogleConfig() GoogleConfig {
 	godotenv.Load()
 	return GoogleConfig{
@@ -61,6 +65,13 @@ func initGeminiAPIConfig() GeminiConfig {
 	godotenv.Load()
 	return GeminiConfig{
 		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
+	}
+}
+
+func initJWTConfig() JWTConfig {
+	godotenv.Load()
+	return JWTConfig{
+		JWTSecret: getEnv("JWT_SECRET", ""),
 	}
 }
 
@@ -89,3 +100,4 @@ var Envs = initDatabaseConfig()
 var GoogleEnvs = initGoogleConfig()
 var GeminiEnvs = initGeminiAPIConfig()
 var ShippoEnvs = initShippoConfig()
+var JWTEnvs = initJWTConfig()

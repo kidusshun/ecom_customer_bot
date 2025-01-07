@@ -7,7 +7,6 @@ import (
 	"github.com/kidusshun/ecom_bot/cmd/api"
 	"github.com/kidusshun/ecom_bot/config"
 	"github.com/kidusshun/ecom_bot/db"
-	"github.com/kidusshun/ecom_bot/service/auth"
 )
 
 func main() {
@@ -21,7 +20,6 @@ func main() {
 		log.Fatal(err)
 	}
 	initStorage(db)
-	auth.NewAuth()
 	server := api.NewAPIServer(":8080", db)
 	err = server.Run()
 	if err != nil {

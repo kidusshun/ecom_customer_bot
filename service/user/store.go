@@ -2,7 +2,6 @@ package user
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -18,12 +17,12 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) GetUserByEmail(email string) (*User, error) {
-	rows := s.db.QueryRow("SELECT * FROM users WHERE email = ?", email)
+	rows := s.db.QueryRow("SELECT * FROM users WHERE email = $1", email)
 
 	u := new(User)
 	u, err := ScanRowToUser(rows)
 	if err != nil {
-		return nil, fmt.Errorf("user not found")
+		return nil, err
 	}
 	return u, nil
 
@@ -32,7 +31,14 @@ func (s *Store) GetUserByEmail(email string) (*User, error) {
 func ScanRowToUser(rows *sql.Row) (*User, error) {
 
 	user := new(User)
-	err := rows.Scan()
+	err := rows.Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.ProfilePicture,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
 
 	if err != nil {
 		return nil, err
@@ -55,10 +61,12 @@ func (s *Store) GetUserByID(id uuid.UUID) (*User, error) {
 
 }
 
-func (s *Store) CreateUser(user User) error {
-	_, err := s.db.Query("INSERT INTO users (name, email, profile_picture) VALUES (?,?,?)", user.Name, user.Email, user.ProfilePicture)
+func (s *Store) CreateUser(name, email, picture string) (*User, error) {
+	row := s.db.QueryRow("INSERT INTO users (name, email, profile_picture) VALUES ($1, $2, $3) RETURNING id, name, email, profile_picture, created_at, updated_at", name, email, picture)
+	
+	createdUser, err := ScanRowToUser(row)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return createdUser, nil
 }
