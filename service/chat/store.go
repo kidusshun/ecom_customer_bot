@@ -26,6 +26,7 @@ func (s *Store) WriteMessage(message string, sessionID uuid.UUID) error {
 }
 
 var Messsages []llmclient.Message
+var MessageHistory []ChatResponse
 
 func (s *Store) GetChatHistory(sessionID uuid.UUID) ([]llmclient.Message, error) {
 	return Messsages, nil

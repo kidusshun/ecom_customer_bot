@@ -29,7 +29,9 @@ type ImageInfo struct {
 }
 
 type ChatResponse struct {
-	ModelResponse string `json:"model_response"`
+	Content string `json:"content"`
+	Role string `json:"role"`
+	Attachment []ImageInfo `json:"attachment"`
 	Location string `json:"location"`
 	Products []product.Product `json:"products"`
 }

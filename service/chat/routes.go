@@ -3,6 +3,7 @@ package chat
 import (
 	"encoding/base64"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -24,6 +25,7 @@ func NewHandler(service ChatService) *Handler {
 
 func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.With(auth.CheckBearerToken).Post("/chat", h.handleChat)
+	router.With(auth.CheckBearerToken).Get("/chat/history", h.handleChatHistory)
 }
 
 func (h *Handler) handleChat(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +42,7 @@ func (h *Handler) handleChat(w http.ResponseWriter, r *http.Request) {
 	// Call the service
 	response, err := h.service.Chat(chatRequest)
 	if err != nil {
+		log.Println(err)
 		utils.WriteError(w, 500, err)
 		return
 	}
@@ -48,6 +51,10 @@ func (h *Handler) handleChat(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, 200, response)
 }
 
+func (h *Handler) handleChatHistory(w http.ResponseWriter, r *http.Request){
+	log.Println(MessageHistory)
+	utils.WriteJSON(w, http.StatusOK, MessageHistory)
+}
 
 func parseRequest(w http.ResponseWriter,r *http.Request) (ChatRequest, error){
 	

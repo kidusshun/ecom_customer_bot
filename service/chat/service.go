@@ -107,7 +107,15 @@ func (chat *Service) Chat(request ChatRequest) (ChatResponse, error) {
 		fmt.Println(string(str))
 	}
 	Messsages = chatHistory
-	chatResponse.ModelResponse = response.Candidates[0].Content.Parts[0].Text
+	MessageHistory = append(MessageHistory, ChatResponse{
+		Content: request.Message,
+		Attachment:   request.Attachment,
+		Role:         "user",
+	})
+
+	chatResponse.Content = response.Candidates[0].Content.Parts[0].Text
+	chatResponse.Role = "model"
+	MessageHistory = append(MessageHistory, chatResponse)
 
 	return chatResponse, nil
 
