@@ -2,6 +2,7 @@ package product
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 
 	"github.com/google/uuid"
@@ -18,7 +19,7 @@ func NewStore(db *sql.DB) *Store {
 }
 
 func (s *Store) GetProducts()(*[]Product, error) {
-	rows, err := s.db.Query("SELECT id, name, description, price, stock_quanity, image_url, category_id, created_at, updated_at from products")
+	rows, err := s.db.Query("SELECT id, name, description, price, stock_quanity, image, created_at, updated_at from products")
 	if err != nil {
 		return nil, err
 	}
@@ -30,13 +31,44 @@ func (s *Store) GetProducts()(*[]Product, error) {
 
 }
 
+func (s *Store) AddProduct(product Product) error {
+	_, err := s.db.Exec("INSERT INTO products (name, description, price, stock_quanity, image) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at", product.Name, product.Description, product.Price, product.StockQuantity, product.Image)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Store) GetProductByID(id uuid.UUID)(*Product, error) {
-	row := s.db.QueryRow("SELECT id, name, description, price, stock_quanity, image_url, category_id, created_at, updated_at FROM products WHERE id = $1", id)
+	row := s.db.QueryRow("SELECT id, name, description, price, stock_quanity, image, created_at, updated_at FROM products WHERE id = $1", id)
 	product, err := scanRowIntoProduct(row)
 	if err != nil {
 		return nil, err
 	}
 	return product, nil
+}
+
+func (s *Store) GetAllProducts()(*[]Product, error) {
+	rows, err := s.db.Query("SELECT id, name, description, price, stock_quanity, image, created_at, updated_at FROM products")
+	if err != nil {
+		return nil, err
+	}
+	products, err := s.ScanRowsIntoProduct(rows)
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
+func (s *Store) InsertEmbedding(id uuid.UUID, embedding []float32) error {
+	embeddingJSON, err := json.Marshal(embedding)
+	_, err = s.db.Exec("UPDATE products SET product_description_embedding = $2 WHERE id = $1", id, embeddingJSON)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func scanRowIntoProduct(row *sql.Row) (*Product, error) {
@@ -48,7 +80,6 @@ func scanRowIntoProduct(row *sql.Row) (*Product, error) {
 		&product.Price,
 		&product.StockQuantity,
 		&product.Image,
-		&product.CategoryId,
 		&product.CreatedAt,
 		&product.UpdatedAt,
 	)
@@ -74,7 +105,6 @@ func (s *Store) ScanRowsIntoProduct(rows *sql.Rows) (*[]Product, error) {
 			&product.Price,
 			&product.StockQuantity,
 			&product.Image,
-			&product.CategoryId,
 			&product.CreatedAt,
 			&product.UpdatedAt,
 		)

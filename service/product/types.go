@@ -14,7 +14,6 @@ type Product struct {
 	Price         float64   `json:"price"`
 	StockQuantity int       `json:"stock_quantity"`
 	Image         string    `json:"image_url"`
-	CategoryId    uuid.UUID `json:"category_id"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -31,7 +30,6 @@ type ProductStore interface {
 	GetProducts() (*[]Product, error)
 	GetProductByID(id uuid.UUID) (*Product, error)
 	ScanRowsIntoProduct(rows *sql.Rows) (*[]Product, error)
-	// CreateProduct(CreateProductPayload) error
-	// UpdateProduct(Product) error
+	AddProduct(product Product) error
 }
 

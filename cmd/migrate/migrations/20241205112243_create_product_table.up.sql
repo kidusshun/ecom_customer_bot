@@ -4,8 +4,7 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT NOT NULL,
   price DECIMAL(10,2) NOT NULL,
   stock_quanity int NOT NULL,
-  image_url TEXT,
-  category_id UUID NOT NULL REFERENCES categories(id),
+  image TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
   updated_at TIMESTAMP NOT NULL DEFAULT now()
 )
