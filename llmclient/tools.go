@@ -85,7 +85,7 @@ func (s *QueryStore) CompanyInfo(query string) (*ToolCallResponse, error) {
 
 
 func (s *QueryStore) QueryProducts(query string) (*ToolCallResponse, error)  {
-	queryStr := fmt.Sprintf("SELECT id, name, description, price, stock_quanity, image_url, category_id, created_at, updated_at FROM products ORDER BY product_description_embedding <=> $1 LIMIT $2")
+	queryStr := fmt.Sprintf("SELECT id, name, description, price, stock_quanity, image, created_at, updated_at FROM products ORDER BY product_description_embedding <=> $1 LIMIT $2")
 	embedding, err := embedding.GetEmbedding(query)
 	if err != nil {
 		return nil, err

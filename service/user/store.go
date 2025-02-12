@@ -22,10 +22,12 @@ func (s *Store) GetUserByEmail(email string) (*User, error) {
 	u := new(User)
 	u, err := ScanRowToUser(rows)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return u, nil
-
 }
 
 func ScanRowToUser(rows *sql.Row) (*User, error) {

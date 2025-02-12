@@ -79,8 +79,11 @@ func (chat *Service) Chat(request ChatRequest) (ChatResponse, error) {
 	for response.Candidates[0].Content.Parts[0].FunctionCall != nil {
 		call_result, err := chat.client.HandleFunctionCall(response)
 		if err != nil {
+			log.Println(err)
 			return ChatResponse{}, nil
 		}
+
+		log.Println("function call", call_result)
 		chatHistory = append(chatHistory, call_result.ModelResponse)
 
 		if call_result.Products != nil {

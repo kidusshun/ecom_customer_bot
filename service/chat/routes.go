@@ -41,12 +41,13 @@ func (h *Handler) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	// Call the service
 	response, err := h.service.Chat(chatRequest)
+	log.Println(response.Content)
 	if err != nil {
 		log.Println(err)
 		utils.WriteError(w, 500, err)
 		return
 	}
-
+	
 	// Return the response
 	utils.WriteJSON(w, 200, response)
 }

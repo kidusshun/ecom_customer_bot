@@ -103,7 +103,6 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	userEmail := r.Context().Value("userEmail").(string)
-	log.Println("emaaaaaaaaaaaaaaail", userEmail)
 	user, err := h.store.GetUserByEmail(userEmail)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
@@ -116,34 +115,36 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) googleSignupOrLogin(w http.ResponseWriter, r *http.Request) {
 	var body LoginPayload
 	err := json.NewDecoder(r.Body).Decode(&body)
-	fmt.Println("request", body.AccessToken)
 	if err != nil {
-
+		log.Println(err)
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
-
+	
 	user, err := verifyGoogleToken(body.AccessToken)
-	fmt.Println("error", err)
-
+	
 	if err != nil {
+		log.Println(err)
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
 	userStored, err := h.store.GetUserByEmail(user.Email)
 	if err != nil {
+		log.Println("no user err: ",err)
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
 	if userStored == nil {
-
+		
 		user, err := h.store.CreateUser(user.Name, user.Email, user.Picture)
 		if err != nil {
+			log.Println("cant create user", err)
 			utils.WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
 		jwtToken, err := auth.GenerateJWT(user.Email)
 		if err != nil {
+			log.Println("cant create jwt token",err)
 			utils.WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -151,10 +152,16 @@ func (h *Handler) googleSignupOrLogin(w http.ResponseWriter, r *http.Request) {
 			Token: jwtToken,
 		}
 		utils.WriteJSON(w, http.StatusOK, response)
+		return
 
 	}
 	jwtToken, err := auth.GenerateJWT(user.Email)
 
+	if err != nil {
+		log.Println("this is the error", err)
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
 	response := LoginResponse{
 		Token: jwtToken,
 	}
